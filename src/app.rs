@@ -2,7 +2,6 @@ use crate::commands::*;
 use json;
 use nom_bibtex::Bibtex;
 use std::path::PathBuf;
-use std::process;
 use structopt::clap;
 use structopt::StructOpt;
 
@@ -152,10 +151,35 @@ impl App {
     }
 
     fn filter_by(mut self, params: ByCmd) {
+        let field = &params.field;
+        let value = &json::from(params.value);
+        let to_remove = self.selection.entries()
+            .filter(|(_, paper)| !App::match_values(value, &paper[field]))
+            .map(|(key, _)| key.to_string())
+            .collect::<Vec<_>>();
+
+        for key in to_remove {
+            self.selection.remove(&key);
+        }
         self.parse_remaining_args(params.remaining_args);
+    }
+
+    fn match_values(value: &json::JsonValue, field_value: &json::JsonValue) -> bool {
+        match value {
+            json::JsonValue::String(str_val) => {
+                match field_value {
+                    json::JsonValue::String(field_str) => field_str.contains(str_val),
+                    json::JsonValue::Array(field_arr) => field_arr
+                        .iter().any(|s| s.as_str().unwrap().contains(str_val)),
+                    _ => false
+                }
+            },
+            _ => false,
+        }
     }
 
     fn doi(mut self, params: DoiCmd) {
         self.parse_remaining_args(params.remaining_args);
     }
 }
+
