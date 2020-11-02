@@ -1,4 +1,5 @@
 use crate::commands::*;
+use crate::rofi_picker;
 use json;
 use nom_bibtex::Bibtex;
 use std::path::PathBuf;
@@ -147,6 +148,8 @@ impl App {
     }
 
     fn pick(mut self, params: PickCmd) {
+        let selection = rofi_picker::pick(self.selection);
+        self.selection = selection;
         self.parse_remaining_args(params.remaining_args);
     }
 
