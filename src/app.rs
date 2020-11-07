@@ -3,6 +3,7 @@ use crate::rofi_picker;
 use json;
 use nom_bibtex::Bibtex;
 use std::path::PathBuf;
+use std::io::Read;
 use structopt::clap;
 use structopt::StructOpt;
 
@@ -53,12 +54,12 @@ impl App {
         match command {
             Command::Add => self.add(),
             Command::Remove => self.remove(),
-            Command::Bibtex(params) => self.bibtex(params),
+            Command::BibtexFile(params) => self.bibtex_file(params),
+            Command::Bibtex(params) => self.bibtex_input(params),
             Command::Print => self.print(),
             Command::List(params) => self.list(params),
             Command::Update(params) => self.update(params),
             Command::By(params) => self.filter_by(params),
-            Command::Doi(params) => self.doi(params),
             Command::Open => self.open(),
             Command::Pick(params) => self.pick(params),
         }
@@ -100,18 +101,28 @@ impl App {
         self.save_db()
     }
 
-    fn bibtex(mut self, params: BibtexCmd) {
+    fn bibtex_file(mut self, params: BibtexFileCmd) {
         let bibtex_string = std::fs::read_to_string(&params.bibtex).unwrap();
+        self.selection = App::parse_bibtex(&bibtex_string);
+        self.parse_remaining_args(params.remaining_args);
+    }
+
+    fn bibtex_input(mut self, params: BibtexInputCmd) {
+        let mut bibtex_string = String::new();
+        std::io::stdin().read_to_string(&mut bibtex_string).expect("Failed to read stdin");
+        self.selection = App::parse_bibtex(&bibtex_string);
+        self.parse_remaining_args(params.remaining_args);
+    }
+
+    fn parse_bibtex(bibtex_string: &str) -> json::JsonValue {
         let bibtex = Bibtex::parse(&bibtex_string).unwrap();
         let mut new_selection = json::object!{};
         for biblio in bibtex.bibliographies(){
             let key = biblio.citation_key();
             let paper_object = App::parse_paper(&biblio);
             new_selection[key] = paper_object;
-            
         }
-        self.selection = new_selection;
-        self.parse_remaining_args(params.remaining_args);
+        return new_selection
     }
 
     fn parse_paper(biblio: &nom_bibtex::Bibliography) -> json::JsonValue {
@@ -179,10 +190,6 @@ impl App {
             },
             _ => false,
         }
-    }
-
-    fn doi(mut self, params: DoiCmd) {
-        self.parse_remaining_args(params.remaining_args);
     }
 }
 

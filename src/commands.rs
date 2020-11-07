@@ -11,10 +11,15 @@ pub struct Add {
 }
 
 #[derive(Debug, StructOpt)]
-pub struct BibtexCmd {
+pub struct BibtexFileCmd {
     #[structopt(parse(from_os_str))]
     pub bibtex: PathBuf,
     pub remaining_args: Vec<String>,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct BibtexInputCmd {
+    pub remaining_args: Vec<String>
 }
 
 #[derive(Debug, StructOpt)]
@@ -54,18 +59,16 @@ pub enum Command{
     Remove,
 
     /// Select all entries from BibTeX file
-    Bibtex(BibtexCmd),
+    BibtexFile(BibtexFileCmd),
+
+    /// Select all entries from BibTeX from stdin
+    Bibtex(BibtexInputCmd),
 
     /// Print selection as json
     Print,
 
     /// Print value of given field for selection 
     List(ListCmd),
-
-    // Arxiv,
-
-    /// Select paper by DOI
-    Doi(DoiCmd),
 
     /// Open selected papers
     Open,
