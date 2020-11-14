@@ -14,5 +14,6 @@ nom-bibtex = "0.2.0"
 json = "0.12.4"
 unicode-normalization = "0.1.8"
 logos = "0.11.4"
+unidecode = "0.3.0"
 #crossref = "0.2.2"
 # reqwest = { version = "0.10.8", features = ["blocking"] }

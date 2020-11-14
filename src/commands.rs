@@ -64,6 +64,9 @@ pub enum Command{
     /// Select all entries from BibTeX from stdin
     Bibtex(BibtexInputCmd),
 
+    /// Print selection as BibTeX to stdout
+    Export,
+
     /// Print selection as json
     Print,
 

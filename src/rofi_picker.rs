@@ -1,5 +1,6 @@
 use std::process::{Command, Stdio};
 use std::io::Write;
+use crate::string_cleaner;
 
 pub fn pick(mut selection: json::JsonValue) -> json::JsonValue {
     let keys = selection.entries().map(|(key, _)| key.to_string()).collect::<Vec<_>>();
@@ -15,7 +16,8 @@ pub fn pick(mut selection: json::JsonValue) -> json::JsonValue {
         .spawn().expect("Failed to execute rofi");
     let stdin = child.stdin.as_mut().expect("Failed to get rofi stdin");
     for key in &keys {
-        selection[key]["title"].write(stdin).expect("Failed to write rofi argument");
+        let clean_title = string_cleaner::clean_string(selection[key]["title"].as_str().unwrap());
+        stdin.write(clean_title.as_bytes()).expect("Failed to write rofi argument");
         stdin.write(b"\n").expect("Failed to write rofi argument");
     }
     stdin.flush().expect("Failed to flush rofi arguments");

@@ -1,7 +1,9 @@
 use crate::commands::*;
 use crate::rofi_picker;
+use crate::string_cleaner;
+use crate::filter;
+use crate::bibtex;
 use json;
-use nom_bibtex::Bibtex;
 use std::path::PathBuf;
 use std::io::Read;
 use structopt::clap;
@@ -56,6 +58,7 @@ impl App {
             Command::Remove => self.remove(),
             Command::BibtexFile(params) => self.bibtex_file(params),
             Command::Bibtex(params) => self.bibtex_input(params),
+            Command::Export => self.export(),
             Command::Print => self.print(),
             Command::List(params) => self.list(params),
             Command::Update(params) => self.update(params),
@@ -102,39 +105,20 @@ impl App {
     }
 
     fn bibtex_file(mut self, params: BibtexFileCmd) {
-        let bibtex_string = std::fs::read_to_string(&params.bibtex).unwrap();
-        self.selection = App::parse_bibtex(&bibtex_string);
+        let bibtex_string = std::fs::read_to_string(&params.bibtex).expect("Failed to read file");
+        self.selection = bibtex::parse_bibtex(&bibtex_string);
         self.parse_remaining_args(params.remaining_args);
     }
 
     fn bibtex_input(mut self, params: BibtexInputCmd) {
         let mut bibtex_string = String::new();
         std::io::stdin().read_to_string(&mut bibtex_string).expect("Failed to read stdin");
-        self.selection = App::parse_bibtex(&bibtex_string);
+        self.selection = bibtex::parse_bibtex(&bibtex_string);
         self.parse_remaining_args(params.remaining_args);
     }
 
-    fn parse_bibtex(bibtex_string: &str) -> json::JsonValue {
-        let bibtex = Bibtex::parse(&bibtex_string).unwrap();
-        let mut new_selection = json::object!{};
-        for biblio in bibtex.bibliographies(){
-            let key = biblio.citation_key();
-            let paper_object = App::parse_paper(&biblio);
-            new_selection[key] = paper_object;
-        }
-        return new_selection
-    }
-
-    fn parse_paper(biblio: &nom_bibtex::Bibliography) -> json::JsonValue {
-        let mut paper_object = json::object!{};
-
-        let entry_type = biblio.entry_type();
-        paper_object["entry_type"] = json::from(entry_type);
-
-        for (key, value) in biblio.tags(){
-            paper_object[key] = json::from(value.clone());
-        }
-        paper_object
+    fn export(self) {
+        print!("{}", bibtex::generate_bibtex(self.selection));
     }
 
     fn print(&self) {
@@ -143,7 +127,8 @@ impl App {
 
     fn list(&self, params: ListCmd) {
         for (_key, paper) in self.selection.entries() {
-            println!("{}", paper[&params.field])
+            let decoded = string_cleaner::clean_string(paper[&params.field].as_str().unwrap());
+            println!("{}", decoded);
         }
     }
 
@@ -167,8 +152,13 @@ impl App {
     fn filter_by(mut self, params: ByCmd) {
         let field = &params.field;
         let value = &json::from(params.value);
+        let clean = match field.as_str() {
+            "title" => true,
+            "author" => true,
+            _ => false
+        };
         let to_remove = self.selection.entries()
-            .filter(|(_, paper)| !App::match_values(value, &paper[field]))
+            .filter(|(_, paper)| !filter::match_values(value, &paper[field], clean))
             .map(|(key, _)| key.to_string())
             .collect::<Vec<_>>();
 
@@ -176,20 +166,6 @@ impl App {
             self.selection.remove(&key);
         }
         self.parse_remaining_args(params.remaining_args);
-    }
-
-    fn match_values(value: &json::JsonValue, field_value: &json::JsonValue) -> bool {
-        match value {
-            json::JsonValue::String(str_val) => {
-                match field_value {
-                    json::JsonValue::String(field_str) => field_str.contains(str_val),
-                    json::JsonValue::Array(field_arr) => field_arr
-                        .iter().any(|s| s.as_str().unwrap().contains(str_val)),
-                    _ => false
-                }
-            },
-            _ => false,
-        }
     }
 }
 
