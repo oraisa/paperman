@@ -29,8 +29,20 @@ impl App {
         app.match_command(args.command)
     }
 
+    fn save_file_name() -> PathBuf {
+        if cfg!(debug_assertions) {
+            std::env::current_dir()
+                .expect("Unable to access current dir")
+                .join(PathBuf::from("db.json"))
+        } else {
+            std::env::current_dir()
+                .expect("Unable to access home dir")
+                .join(PathBuf::from("/.paperman/db.json"))
+        }
+    }
+
     fn save_db(&self) {
-        let db_dir = PathBuf::from("/home/ossi/.paperman/db.json");
+        let db_dir = App::save_file_name();
         let result = std::fs::write(db_dir, self.db.dump());
         match result {
             Ok(_) => return,
@@ -39,7 +51,7 @@ impl App {
     }
 
     fn load_db() -> json::JsonValue{
-        let db_dir = PathBuf::from("/home/ossi/.paperman/db.json");
+        let db_dir = App::save_file_name();
         let json_result = std::fs::read_to_string(&db_dir);
         match json_result {
             Ok(json) => json::parse(&json).unwrap(),
